@@ -1,7 +1,7 @@
 import {firebaseConfig} from './firebase-config.js';
 import {money, dollarsToCents, balance} from './quota.js';
 import {createLedger} from './ledger.js';
-import {catalog} from './catalog.js';
+import {catalog} from './catalog.js?v=20261030-2';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
