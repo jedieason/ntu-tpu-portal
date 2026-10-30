@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function googleUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    function admin() {
+      return googleUser()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.enabled == true
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.email == request.auth.token.email.lower();
+    }
+    function validMember(email, m) {
+      return m.keys().hasAll(['email', 'name', 'member_id', 'currency', 'enabled',
+          'quota_cents', 'charged_cents', 'reserved_cents', 'created_at', 'updated_at', 'last_grant_id', 'cost_sync_at'])
+        && m.keys().hasOnly(['email', 'name', 'member_id', 'currency', 'enabled',
+          'quota_cents', 'charged_cents', 'reserved_cents', 'created_at', 'updated_at', 'last_grant_id', 'cost_sync_at'])
+        && m.email == email && email == email.lower()
+        && m.name is string && m.name.size() > 0 && m.name.size() <= 80
+        && m.member_id is string && m.member_id.matches('[a-z][a-z0-9_-]{1,31}')
+        && m.currency == 'USD' && m.enabled is bool
+        && m.quota_cents is int && m.quota_cents > 0 && m.quota_cents <= 100000000
+        && m.charged_cents is int && m.charged_cents >= 0
+        && m.reserved_cents is int && m.reserved_cents >= 0
+        && (m.cost_sync_at == null || m.cost_sync_at is timestamp)
+        && m.created_at is timestamp && m.updated_at == request.time
+        && m.last_grant_id is string && m.last_grant_id.matches('[a-zA-Z0-9_-]{16,80}');
+    }
+    function grantLinked(email, oldQuota, m) {
+      let p = /databases/$(database)/documents/quota_transactions/$(m.last_grant_id);
+      let a = getAfter(p).data;
+      return !exists(p) && a.member_email == email && a.type == 'GRANT'
+        && a.actor_uid == request.auth.uid && a.created_at == request.time
+        && a.old_quota_cents == oldQuota && a.new_quota_cents == m.quota_cents
+        && a.delta_cents == m.quota_cents - oldQuota && a.delta_cents > 0;
+    }
+    match /admins/{uid} {
+      allow get: if googleUser() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+    match /members/{email} {
+      allow get: if admin() || (googleUser() && request.auth.token.email.lower() == email);
+      allow list: if admin();
+      allow create: if admin() && validMember(email, request.resource.data)
+        && request.resource.data.created_at == request.time
+        && request.resource.data.charged_cents == 0 && request.resource.data.reserved_cents == 0
+        && request.resource.data.cost_sync_at == null
+        && grantLinked(email, 0, request.resource.data);
+      allow update: if admin() && validMember(email, request.resource.data) && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'member_id', 'enabled', 'updated_at'])
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quota_cents', 'updated_at', 'last_grant_id'])
+          && request.resource.data.quota_cents > resource.data.quota_cents
+          && grantLinked(email, resource.data.quota_cents, request.resource.data))
+      );
+      allow delete: if false;
+    }
+    match /quota_transactions/{id} {
+      allow read: if admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasAll(['member_email', 'type', 'delta_cents',
+          'old_quota_cents', 'new_quota_cents', 'reason', 'actor_uid', 'created_at'])
+        && request.resource.data.keys().hasOnly(['member_email', 'type', 'delta_cents',
+          'old_quota_cents', 'new_quota_cents', 'reason', 'actor_uid', 'created_at'])
+        && request.resource.data.type == 'GRANT'
+        && request.resource.data.actor_uid == request.auth.uid
+        && request.resource.data.created_at == request.time
+        && request.resource.data.delta_cents is int && request.resource.data.delta_cents > 0
+        && request.resource.data.reason is string && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 300
+        && getAfter(/databases/$(database)/documents/members/$(request.resource.data.member_email)).data.last_grant_id == id
+        && getAfter(/databases/$(database)/documents/members/$(request.resource.data.member_email)).data.quota_cents == request.resource.data.new_quota_cents
+        && request.resource.data.new_quota_cents == request.resource.data.old_quota_cents + request.resource.data.delta_cents
+        && ((!exists(/databases/$(database)/documents/members/$(request.resource.data.member_email))
+            && request.resource.data.old_quota_cents == 0)
+          || (exists(/databases/$(database)/documents/members/$(request.resource.data.member_email))
+            && get(/databases/$(database)/documents/members/$(request.resource.data.member_email)).data.quota_cents == request.resource.data.old_quota_cents));
+      allow update, delete: if false;
+    }
+    match /jobs/{id} {
+      allow read: if admin() || (googleUser() && resource.data.owner_uid == request.auth.uid);
+      allow write: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

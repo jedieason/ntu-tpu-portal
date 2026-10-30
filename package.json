@@ -1,0 +1,15 @@
+{
+  "name": "ntu-tpu-portal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preview": "node scripts/serve.mjs",
+    "test": "node --test tests/quota.test.mjs",
+    "test:rules": "firebase emulators:exec --project demo-ntu-tpu --only firestore 'node --test tests/rules.test.mjs'"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.0",
+    "firebase": "12.4.0",
+    "firebase-tools": "^14.22.0"
+  }
+}

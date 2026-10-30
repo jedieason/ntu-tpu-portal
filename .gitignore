@@ -1,0 +1,9 @@
+node_modules/
+*-debug.log
+.firebase/
+.DS_Store
+private/
+TPU_ADMIN_GUIDE.md
+firepit-log.txt
+*.log
+

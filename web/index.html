@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <title>NTU TPU · Research Console</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div id="preview-banner" hidden>設計預覽 · 示範資料，未連接帳戶或雲端資源</div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="NTU TPU 首頁"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>NTU TPU</strong><span class="brand-divider"></span><span class="brand-sub">Research Console</span></a>
+    <div id="identity" hidden><span id="account-email"></span><span id="role-chip" class="chip"></span><button id="signout" class="text-button">登出</button></div>
+  </header>
+  <main id="landing">
+    <section class="welcome">
+      <div class="eyebrow">NTU TPU RESEARCH</div>
+      <h1>TPU 使用額度</h1>
+      <p class="welcome-copy">使用 Google 帳號登入，查看額度與使用紀錄。</p>
+      <button id="signin" class="primary large"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.6 12.2c0-.7-.1-1.4-.2-2.2H12v4h5.4a4.7 4.7 0 0 1-2 3.1 6 6 0 1 1-3.4-11c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.8 9.8 0 0 0 12 2a10 10 0 1 0 0 20c5.8 0 9.6-4.1 9.6-9.8Z"/></svg>使用 Google 登入</button>
+      <p id="setup-message" class="caption"></p>
+    </section>
+    <div class="welcome-art" aria-hidden="true"><div class="art-orbit"></div><div class="art-card"><span class="art-label">TPU</span><div class="art-title">額度概況</div><div class="art-meter"><span></span></div><div class="art-bottom"><span>已使用</span><span>預留</span><span>可用</span></div></div></div>
+  </main>
+  <div id="workspace" hidden>
+    <nav id="navigation" aria-label="主導覽"><button class="nav-button selected" data-view="overview"><span aria-hidden="true">◫</span>額度總覽</button><button class="nav-button admin-only" data-view="members"><span aria-hidden="true">○</span>成員管理</button><button class="nav-button admin-only" data-view="history"><span aria-hidden="true">↺</span>額度紀錄</button><div class="nav-footer"><span class="dot green"></span> Research workspace<br><span>金額單位 · USD</span></div></nav>
+    <section class="content">
+      <div class="page-heading"><div><h1 id="page-title">額度總覽</h1><p id="page-description" hidden></p></div><div class="heading-actions"><button id="refresh" class="outline">↻ 更新</button><button id="new-member" class="primary admin-only">＋ 新增成員</button></div></div>
+      <div id="empty-state" class="empty" hidden></div>
+      <section id="allocation-panel" class="panel" hidden><div class="panel-heading"><div><h2>額度分配</h2><p>已使用、預留與可用額度</p></div><span class="chip">USD</span></div><div id="allocation"></div></section>
+      <section id="stats" class="stats" aria-label="額度摘要"></section>
+      <div id="data-notice" class="notice" role="status" hidden></div>
+      <section id="catalog-panel" class="panel" hidden><div class="panel-heading"><div><h2>TPU 類型</h2><p>計畫支援範圍與目前開放狀態</p></div></div><div id="catalog-list"></div><p class="catalog-note">費率以每台 VM 計，未含磁碟與網路等費用；Flex-start 需等待可用容量。<a href="https://cloud.google.com/products/dws/pricing#flex-start-tpu-vm-pricing" target="_blank" rel="noopener noreferrer">官方費率 ↗</a></p></section>
+      <section id="member-panel" class="panel" hidden><div class="panel-heading"><div><h2 id="member-panel-title">所有成員</h2><p id="member-count"></p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜尋姓名或 Email" aria-label="搜尋成員"></label></div><div id="member-list"></div></section>
+      <section id="history-panel" class="panel" hidden><div class="panel-heading"><div><h2>額度異動</h2><p>最近 50 筆派發紀錄，每筆皆保留原因與時間</p></div></div><div id="history-list"></div></section>
+      <footer class="workspace-footer"><span>額度為內部分配的研究使用權。實際雲端費用以帳單核對結果為準。</span><span id="updated-at"></span></footer>
+    </section>
+  </div>
+  <dialog id="member-dialog"><form id="member-form"><div class="dialog-heading"><div><div class="eyebrow">MEMBER MANAGEMENT</div><h2>新增成員</h2></div><button type="button" data-close class="icon-button" aria-label="關閉">×</button></div><p class="dialog-description">為指定 Google 帳號建立研究額度。成員可在首次登入後查看。</p><label>姓名<input name="name" required maxlength="80" autocomplete="off"></label><label>Google 帳號 Email<input name="email" type="email" required autocomplete="off"></label><label>成員代號<input name="member_id" required pattern="[a-z][a-z0-9_-]{1,31}" maxlength="32" placeholder="例如 researcher-a" autocomplete="off"><small>2–32 個小寫英文字母、數字、底線或連字號</small></label><label>初始額度（USD）<input name="amount" type="text" inputmode="decimal" required placeholder="100.00" autocomplete="off"></label><label>派發原因<textarea name="reason" required maxlength="300" rows="2" placeholder="例如：本月研究配額"></textarea></label><p class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close class="text-button">取消</button><button class="primary" type="submit">建立並派發額度</button></div></form></dialog>
+  <dialog id="grant-dialog"><form id="grant-form"><div class="dialog-heading"><div><div class="eyebrow">CREDIT ALLOCATION</div><h2>派發額度</h2></div><button type="button" data-close class="icon-button" aria-label="關閉">×</button></div><div id="grant-person" class="grant-person"></div><label>增加額度（USD）<input name="amount" type="text" inputmode="decimal" required placeholder="50.00" autocomplete="off"></label><label>派發原因<textarea name="reason" required maxlength="300" rows="2" placeholder="記錄這次派發的用途"></textarea></label><div id="grant-review" class="grant-review"></div><p class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close class="text-button">取消</button><button class="primary" type="submit">確認派發</button></div></form></dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
