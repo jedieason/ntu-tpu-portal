@@ -10,6 +10,8 @@ Static quota dashboard for GitHub Pages, using Google sign-in and Firestore on a
 
 The dashboard does not currently provision TPUs or reconcile billing. A recorded allocation is not a Google Cloud Billing spend cap. The compute controller must be deployed and tested separately before enabling self-service jobs.
 
+The frontend includes an optional TPU request and settlement interface. Its connection remains disabled (`backendUrl = null`). The controller implementation and deployment review are kept privately and are not part of this public repository. No cloud service or recurring scheduler is deployed by the Pages workflow.
+
 ## Local preview
 
 ```sh

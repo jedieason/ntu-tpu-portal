@@ -2,12 +2,14 @@ import {firebaseConfig} from './firebase-config.js';
 import {money, dollarsToCents, balance} from './quota.js';
 import {createLedger} from './ledger.js';
 import {catalog} from './catalog.js?v=20261030-2';
+import {backendUrl} from './backend-config.js';
+import {mountTpuPanel} from './tpu-panel.js';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const preview = new URLSearchParams(location.search).get('preview');
-const state = {admin: false, user: null, members: [], view: 'overview', busy: false, epoch: 0};
-let auth, db, fs, authSdk, ledger, toastTimer;
+const state = {admin: false, user: null, members: [], view: 'overview', busy: false, epoch: 0,loadedAt:null};
+let auth, db, fs, authSdk, ledger, toastTimer, tpuPanel;
 function toast(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').hidden = true, 4500); }
 function errorMessage(error) {
   const code = error?.code;
@@ -49,6 +51,7 @@ function render() {
   $('#member-panel').hidden = !state.admin || historyView;
   $('#history-panel').hidden = !historyView;
   $('#catalog-panel').hidden = historyView || state.view === 'members' || !hasData;
+  $('#tpu-panel').hidden = historyView || state.view === 'members' || (!backendUrl&&!preview) || !hasData;
   if(hasData){
     const expired=Date.now()>=Date.parse(catalog.priceReviewBefore);
     $('#catalog-list').innerHTML=catalog.machines.map(m=>`<article class="catalog-row"><div><strong>${escape(m.family)}</strong><span class="chip">${escape(m.status)}</span><p>${escape(m.machine)} · ${m.chips} chips</p><p>${escape(m.zones.join(' / '))}</p><p>${escape(m.detail)}</p></div><div class="catalog-price">${expired?'待更新費率':`${escape(money(m.hourlyCents))}<small> / 小時</small>`}<small>${expired?'官方預告 11 月調價':`費率核對 ${catalog.reviewedAt}`}</small></div></article>`).join('');
@@ -70,9 +73,9 @@ function render() {
     $('#allocation').innerHTML = `<div class="allocation-body"><div class="bar-heading"><span>已結算使用率</span><strong>${percent}%</strong></div>${meter(total)}${legend(total)}</div>`;
     const unsynced = list.some(m=>!m.cost_sync_at);
     $('#data-notice').hidden = false;
-    $('#data-notice').textContent = unsynced ? 'TPU 自助申請與費用同步尚未完成。已使用金額為管理帳本數值，尚不能視為 Google 的實際帳單；核發額度也不代表已建立 TPU。' : '使用費用以最後一次核對為準；仍在排隊或執行的工作會先預留額度。';
+    $('#data-notice').textContent = !backendUrl ? 'TPU 自助申請與費用同步尚未完成。已使用金額為管理帳本數值，尚不能視為 Google 的實際帳單；核發額度也不代表已建立 TPU。' : unsynced ? '部分費用尚未核對；工作預留會在管理員結算後更新。' : '使用費用以最後一次核對為準；仍在排隊或執行的工作會先預留額度。';
     if (b.overage) $('#data-notice').textContent += ` 目前超出已核發額度 ${money(b.overage)}，請聯絡管理員。`;
-    $('#updated-at').textContent = preview ? '示範資料' : `最近讀取 · ${dateLabel(new Date())}`;
+    $('#updated-at').textContent = preview ? '示範資料' : `最近讀取 · ${dateLabel(state.loadedAt)}`;
   } else $('#data-notice').hidden = true;
   renderMembers();
 }
@@ -91,7 +94,9 @@ async function loadMembers() {
   members.forEach(balance);
   if (epoch !== state.epoch) return;
   state.members = members.sort((a,b)=>a.name.localeCompare(b.name,'zh-TW'));
+  state.loadedAt=new Date();
   render();
+  if(backendUrl&&state.members.length&&!tpuPanel){const user=state.user;tpuPanel=mountTpuPanel({root:$('#tpu-panel'),base:backendUrl,getToken:()=>user.getIdToken(),admin:state.admin,onChange:loadMembers});}
 }
 async function loadHistory() {
   if (preview) { $('#history-list').innerHTML = '<div class="empty">設計預覽不包含真實派發紀錄。</div>'; return; }
@@ -160,7 +165,8 @@ async function start() {
     $('#preview-banner').hidden=false;state.admin=preview!=='member';state.user={uid:'preview',email:'preview@example.invalid'};
     state.members=[{email:'researcher-a@example.invalid',name:'研究成員 A',member_id:'researcher-a',quota_cents:20000,charged_cents:7250,reserved_cents:2000,enabled:true,cost_sync_at:null},{email:'researcher-b@example.invalid',name:'研究成員 B',member_id:'researcher-b',quota_cents:15000,charged_cents:3800,reserved_cents:0,enabled:true,cost_sync_at:null}];
     if(!state.admin)state.members=state.members.slice(0,1);
-    $('#landing').hidden=true;$('#workspace').hidden=false;$('#identity').hidden=false;$('#account-email').textContent='設計預覽';$('#new-member').disabled=true;render();return;
+    $('#landing').hidden=true;$('#workspace').hidden=false;$('#identity').hidden=false;$('#account-email').textContent='設計預覽';$('#new-member').disabled=true;render();
+    tpuPanel=mountTpuPanel({root:$('#tpu-panel'),admin:state.admin,preview:true,onChange:async()=>{}});return;
   }
   if(!firebaseConfig){$('#setup-message').textContent='登入服務尚未完成連接。完成 Firebase Web app 設定後即可使用。';$('#signin').disabled=true;return;}
   $('#setup-message').textContent='正在連接安全登入服務…';
@@ -170,6 +176,7 @@ async function start() {
     await a.setPersistence(auth,a.browserSessionPersistence);
     $('#setup-message').textContent='僅限已獲配額的研究成員。';
     a.onAuthStateChanged(auth,async user=>{
+      tpuPanel?.dispose();tpuPanel=null;$('#tpu-panel').hidden=true;state.loadedAt=null;
       state.epoch++;state.user=user;state.members=[];state.admin=false;state.view='overview';$('#member-list').replaceChildren();$('#history-list').replaceChildren();$('#stats').replaceChildren();$('#allocation').replaceChildren();document.querySelectorAll('dialog').forEach(d=>d.close());
       $('#landing').hidden=!!user;$('#workspace').hidden=!user;$('#identity').hidden=!user;
       if(!user)return;

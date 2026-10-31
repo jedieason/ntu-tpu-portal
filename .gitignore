@@ -3,6 +3,7 @@ node_modules/
 .firebase/
 .DS_Store
 private/
+backend/
 TPU_ADMIN_GUIDE.md
 firepit-log.txt
 *.log

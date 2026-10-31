@@ -8,8 +8,8 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://*.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>NTU TPU · Research Console</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js?v=20261030-2"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261031-1">
+  <script type="module" src="./app.js?v=20261031-1"></script>
 </head>
 <body>
   <div id="preview-banner" hidden>設計預覽 · 示範資料，未連接帳戶或雲端資源</div>
@@ -36,6 +36,15 @@
       <section id="stats" class="stats" aria-label="額度摘要"></section>
       <div id="data-notice" class="notice" role="status" hidden></div>
       <section id="catalog-panel" class="panel" hidden><div class="panel-heading"><div><h2>TPU 類型</h2><p>計畫支援範圍與目前開放狀態</p></div></div><div id="catalog-list"></div><p class="catalog-note">費率以每台 VM 計，未含磁碟與網路等費用；Flex-start 需等待可用容量。<a href="https://cloud.google.com/products/dws/pricing#flex-start-tpu-vm-pricing" target="_blank" rel="noopener noreferrer">官方費率 ↗</a></p></section>
+      <section id="tpu-panel" class="panel" hidden>
+        <div class="panel-heading"><div><h2>TPU 工作</h2><p>每人同時一個工作，結束後由管理員核對費用</p></div><button type="button" class="outline" data-refresh-jobs>讀取工作紀錄</button></div>
+        <div class="tpu-body">
+          <form data-request><label>執行上限<select name="duration"><option value="60">1 小時</option><option value="120">2 小時</option><option value="240">4 小時</option></select></label><button type="button" class="outline" data-get-quote>取得預留金額</button><p class="tpu-quote" data-quote></p><button type="submit" class="primary" data-confirm-request hidden>確認預留並申請</button></form>
+          <p class="caption" data-tpu-notice role="status">需要查看最新狀態時，請按「核對狀態」。</p>
+          <div data-jobs></div>
+          <form class="settlement-form" data-settlement hidden><h3 data-settlement-title>結算費用</h3><label>帳單核對費用（USD，未扣共享 Credits）<input name="cost" type="text" inputmode="decimal" required placeholder="0.00"></label><label>核對依據<textarea name="evidence" minlength="10" maxlength="1000" required placeholder="帳單期間、資源名稱與核對結果" rows="3"></textarea></label><p class="caption">包括該工作相關的磁碟與網路費用；確認資源已結束且費用完整後再結算。</p><div class="dialog-actions"><button type="button" class="text-button" data-close-settlement>取消</button><button type="submit" class="primary">確認結算</button></div></form>
+        </div>
+      </section>
       <section id="member-panel" class="panel" hidden><div class="panel-heading"><div><h2 id="member-panel-title">所有成員</h2><p id="member-count"></p></div><label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜尋姓名或 Email" aria-label="搜尋成員"></label></div><div id="member-list"></div></section>
       <section id="history-panel" class="panel" hidden><div class="panel-heading"><div><h2>額度異動</h2><p>最近 50 筆派發紀錄，每筆皆保留原因與時間</p></div></div><div id="history-list"></div></section>
       <footer class="workspace-footer"><span>額度為內部分配的研究使用權。實際雲端費用以帳單核對結果為準。</span><span id="updated-at"></span></footer>
